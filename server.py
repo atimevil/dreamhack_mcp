@@ -327,6 +327,11 @@ def challenge_files_resource(title: str):
         return []
     return [os.path.join(safe_title, f) for f in os.listdir(safe_title)]
 
+@mcp.resource("health")
+def health_check():
+    """서버 상태 확인을 위한 헬스 체크 엔드포인트"""
+    return {"status": "healthy"}
+
 if __name__ == "__main__":
     # 환경 변수에서 호스트와 포트 값을 읽어오거나, 기본값을 사용
     host = os.environ.get("HOST", "127.0.0.1")
