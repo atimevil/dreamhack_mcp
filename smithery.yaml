@@ -5,6 +5,28 @@ build:
   # Use the Dockerfile in the root of the repository
   dockerfile: Dockerfile
 
+startCommand:
+  type: http
+  configSchema:
+    type: object
+    properties:
+      HOST:
+        type: string
+        title: "Server Host"
+        default: "0.0.0.0"
+      PORT:
+        type: number
+        title: "Server Port"
+        default: 8000
+      MCP_PATH:
+        type: string
+        title: "MCP Endpoint Path"
+        default: "/mcp"
+    required:
+      - HOST
+      - PORT
+      - MCP_PATH
+
 run:
   # Command to run the agent.
   # This usually matches the CMD in the Dockerfile, but can override it.
