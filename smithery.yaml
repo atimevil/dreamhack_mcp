@@ -1,4 +1,24 @@
-version: 1
-start:
-  command: ["python", "main.py"]
-  port: 5000
+# smithery.yaml
+# This file tells Smithery.ai how to build and run your agent.
+
+build:
+  # Use the Dockerfile in the root of the repository
+  dockerfile: Dockerfile
+
+run:
+  # Command to run the agent.
+  # This usually matches the CMD in the Dockerfile, but can override it.
+  command: ["python", "fastmcp_server.py"]
+
+  # Ports to expose from the container.
+  # The format is "containerPort:externalPort".
+  # Smithery.ai will map the container's 8000 port to an available external port.
+  ports:
+    - "8000:8000" # Map container port 8000 to external port (platform will handle actual mapping)
+
+  # Environment variables to set for the running agent.
+  # These will be read by fastmcp_server.py
+  environment:
+    HOST: "0.0.0.0" # Listen on all network interfaces
+    PORT: "8000"    # Listen on port 8000
+    MCP_PATH: "/mcp" # Explicitly set the MCP path 
