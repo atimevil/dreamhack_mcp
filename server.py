@@ -24,7 +24,9 @@ mcp = FastMCP(
     "Dreamhack MCP",
     path=mcp_path,
     config_schema=ServerConfig,
-    lazy_load=True  # 지연 로딩 활성화
+    lazy_load=True,  # 지연 로딩 활성화
+    timeout=30,  # 타임아웃 설정 (초)
+    max_workers=4  # 최대 워커 수 설정
 )
 
 # 세션 전역 관리
@@ -342,5 +344,8 @@ if __name__ == "__main__":
         transport="streamable-http",
         host=host,
         port=port,
-        lazy_load=True  # 지연 로딩 활성화
+        lazy_load=True,  # 지연 로딩 활성화
+        timeout=30,  # 타임아웃 설정 (초)
+        max_workers=4,  # 최대 워커 수 설정
+        log_level="info"  # 로그 레벨 설정
     ) 
