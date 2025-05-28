@@ -1,3 +1,4 @@
 fastmcp @ git+https://github.com/jlowin/fastmcp.git
 requests
-beautifulsoup4 
+beautifulsoup4
+pydantic 
