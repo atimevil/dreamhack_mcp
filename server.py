@@ -364,5 +364,6 @@ if __name__ == "__main__":
         timeout=60,
         max_workers=4,
         tool_scan_timeout=60,
-        log_level="debug"  # 디버그 로그 활성화
+        log_level="debug",  # 디버그 로그 활성화
+        scan_tools=False  # 도구 스캔 비활성화
     ) 
