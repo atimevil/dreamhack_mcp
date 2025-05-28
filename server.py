@@ -20,7 +20,12 @@ class ServerConfig(BaseModel):
 mcp_path = os.environ.get("MCP_PATH", "/mcp")
 
 # FastMCP 객체 생성 시 config_schema 인자로 Pydantic 모델 전달
-mcp = FastMCP("Dreamhack MCP", path=mcp_path, config_schema=ServerConfig)
+mcp = FastMCP(
+    "Dreamhack MCP",
+    path=mcp_path,
+    config_schema=ServerConfig,
+    lazy_load=True  # 지연 로딩 활성화
+)
 
 # 세션 전역 관리
 session = None
@@ -228,6 +233,62 @@ def stop_challenge(deployment_type: str, image_name: str = None, process_id: int
     else:
         return {"error": "Unknown deployment_type"}
 
+@mcp.tool()
+def submit_flag(url: str, flag: str) -> dict:
+    """문제의 flag 제출"""
+    global session
+    if not session:
+        return {"error": "Not logged in"}
+
+    try:
+        if not url or not flag:
+            return {"error": "url and flag are required"}
+
+        # URL이 상대 경로인 경우 절대 경로로 변환
+        if not url.startswith('http'):
+            url = "https://dreamhack.io" + url
+
+        # 문제 페이지 접근
+        res = session.get(url)
+        if res.status_code != 200:
+            return {"error": f"Failed to access challenge page: {res.status_code}"}
+
+        # CSRF 토큰 추출
+        soup = BeautifulSoup(res.text, "html.parser")
+        csrf_token = soup.find('meta', {'name': 'csrf-token'})
+        if not csrf_token:
+            return {"error": "CSRF token not found"}
+
+        # Flag 제출
+        submit_url = f"{url}/submit"
+        headers = {
+            'X-CSRFToken': csrf_token['content'],
+            'Content-Type': 'application/json',
+            'Referer': url
+        }
+        
+        submit_data = {
+            'flag': flag
+        }
+        
+        submit_resp = session.post(submit_url, json=submit_data, headers=headers)
+        
+        if submit_resp.status_code == 200:
+            result = submit_resp.json()
+            return {
+                "success": True,
+                "message": result.get('message', 'Flag submitted successfully'),
+                "result": result
+            }
+        else:
+            return {
+                "error": f"Failed to submit flag: {submit_resp.status_code}",
+                "details": submit_resp.text
+            }
+
+    except Exception as e:
+        return {"error": str(e)}
+
 # -------------------- PROMPTS --------------------
 
 @mcp.prompt()
@@ -241,6 +302,10 @@ def problem_summary_prompt(title: str, category: str, difficulty: str) -> str:
 @mcp.prompt()
 def deploy_prompt(title: str) -> str:
     return f"문제 '{title}'를 서버에 배포합니다. 계속하시겠습니까?"
+
+@mcp.prompt()
+def submit_flag_prompt(url: str) -> str:
+    return f"문제 페이지 {url}에 flag를 제출합니다. 계속하시겠습니까?"
 
 # -------------------- RESOURCES --------------------
 
@@ -264,12 +329,13 @@ def challenge_files_resource(title: str):
 
 if __name__ == "__main__":
     # 환경 변수에서 호스트와 포트 값을 읽어오거나, 기본값을 사용
-    # 이 부분도 Pydantic 모델에서 처리할 수 있지만, 현재 코드는 os.environ.get을 사용
-    # Pydantic 설정을 사용하려면 mcp = FastMCP("...", config=ServerConfig()) 형태로 변경 필요
-    # 하지만 현재 구조에서는 os.environ.get 방식을 유지하는 것이 더 간단합니다.
     host = os.environ.get("HOST", "127.0.0.1")
     port = int(os.environ.get("PORT", 8000))
 
     # fastmcp 서버 실행 (환경 변수에서 읽은 호스트/포트 사용)
-    # path는 이미 FastMCP 객체 생성 시 설정됨
-    mcp.run(transport="streamable-http", host=host, port=port) 
+    mcp.run(
+        transport="streamable-http",
+        host=host,
+        port=port,
+        lazy_load=True  # 지연 로딩 활성화
+    ) 
