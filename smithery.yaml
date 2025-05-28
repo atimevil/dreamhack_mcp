@@ -29,18 +29,24 @@ startCommand:
 
 run:
   # Command to run the agent.
-  # This usually matches the CMD in the Dockerfile, but can override it.
-  command: ["python", "fastmcp_server.py"]
+  command: ["python", "-u", "fastmcp_server.py"]  # -u flag for unbuffered output
 
   # Ports to expose from the container.
-  # The format is "containerPort:externalPort".
-  # Smithery.ai will map the container's 8000 port to an available external port.
   ports:
-    - "8000:8000" # Map container port 8000 to external port (platform will handle actual mapping)
+    - "8000:8000"
 
   # Environment variables to set for the running agent.
-  # These will be read by fastmcp_server.py
   environment:
-    HOST: "0.0.0.0" # Listen on all network interfaces
-    PORT: "8000"    # Listen on port 8000
-    MCP_PATH: "/mcp" # Explicitly set the MCP path 
+    HOST: "0.0.0.0"
+    PORT: "8000"
+    MCP_PATH: "/mcp"
+    PYTHONUNBUFFERED: "1"  # Ensure Python output is not buffered
+    PYTHONDONTWRITEBYTECODE: "1"  # Don't write .pyc files
+
+  # Health check configuration
+  healthCheck:
+    type: http
+    path: "/mcp/health"  # Health check endpoint
+    interval: 30  # Check every 30 seconds
+    timeout: 10   # Timeout after 10 seconds
+    retries: 3    # Retry 3 times before marking unhealthy 
