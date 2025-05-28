@@ -14,7 +14,7 @@ class ServerConfig(BaseModel):
     HOST: str = "127.0.0.1"
     PORT: int = 8000
     MCP_PATH: str = "/mcp"
-    TIMEOUT: int = 60  # 타임아웃 시간 증가
+    TIMEOUT: int = 6000  # 타임아웃 시간 증가
     MAX_WORKERS: int = 4
     # 필요한 다른 설정 옵션이 있다면 여기에 추가
 
@@ -363,6 +363,6 @@ if __name__ == "__main__":
         lazy_load=True,
         timeout=60,
         max_workers=4,
-        tool_scan_timeout=60,
+        tool_scan_timeout=6000,
         log_level="debug"  # 디버그 로그 활성화
     ) 
