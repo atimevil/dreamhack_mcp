@@ -42,11 +42,14 @@ run:
     MCP_PATH: "/mcp"
     PYTHONUNBUFFERED: "1"  # Ensure Python output is not buffered
     PYTHONDONTWRITEBYTECODE: "1"  # Don't write .pyc files
+    MCP_TIMEOUT: "30"  # MCP 타임아웃 설정
+    MCP_MAX_WORKERS: "4"  # MCP 최대 워커 수 설정
 
   # Health check configuration
   healthCheck:
     type: http
     path: "/mcp/health"  # Health check endpoint
     interval: 30  # Check every 30 seconds
-    timeout: 10   # Timeout after 10 seconds
-    retries: 3    # Retry 3 times before marking unhealthy 
+    timeout: 30   # Timeout after 30 seconds (increased from 10)
+    retries: 5    # Retry 5 times before marking unhealthy (increased from 3)
+    initialDelay: 10  # Wait 10 seconds before starting health checks 
