@@ -40,7 +40,7 @@ This project implements a Model Context Protocol (MCP) server using the fastmcp 
 You can run the fastmcp server directly as a Python script. The server will listen for incoming MCP requests over HTTP.
 
 ```bash
-python fastmcp_server.py
+python server.py
 ```
 
 By default, the server listens on `http://127.0.0.1:8000/mcp`. You can configure the host, port, and MCP path using environment variables:
@@ -52,15 +52,15 @@ By default, the server listens on `http://127.0.0.1:8000/mcp`. You can configure
 Example using environment variables:
 
 ```bash
-HOST=0.0.0.0 PORT=8080 python fastmcp_server.py
+HOST=0.0.0.0 PORT=8080 python server.py
 ```
-*(Note: On Windows, setting environment variables might require a different syntax, e.g., `set HOST=0.0.0.0 && set PORT=8080 && python fastmcp_server.py`)*
+*(Note: On Windows, setting environment variables might require a different syntax, e.g., `set HOST=0.0.0.0 && set PORT=8080 && python server.py`)*
 
 ### Testing with MCP Inspector
 
 You can use the [MCP Inspector](https://github.com/modelcontextprotocol/inspector) to test the server's tools, prompts, and resources visually.
 
-1.  Make sure the `fastmcp_server.py` is running (as shown above).
+1.  Make sure the `server.py` is running (as shown above).
 2.  Open a new terminal and run MCP Inspector:
     ```bash
     npx @modelcontextprotocol/inspector
