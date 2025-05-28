@@ -6,7 +6,10 @@ import subprocess
 import re
 import json
 
-mcp = FastMCP("Dreamhack MCP")
+# 환경 변수에서 MCP 경로를 읽어오거나, 기본값 "/mcp" 사용
+mcp_path = os.environ.get("MCP_PATH", "/mcp")
+
+mcp = FastMCP("Dreamhack MCP", path=mcp_path)
 
 # 세션 전역 관리
 session = None
@@ -254,4 +257,5 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
 
     # fastmcp 서버 실행 (환경 변수에서 읽은 호스트/포트 사용)
+    # path는 이미 FastMCP 객체 생성 시 설정됨
     mcp.run(transport="streamable-http", host=host, port=port) 
