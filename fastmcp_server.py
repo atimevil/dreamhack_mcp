@@ -249,4 +249,9 @@ def challenge_files_resource(title: str):
     return [os.path.join(safe_title, f) for f in os.listdir(safe_title)]
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http", host="127.0.0.1", port=8000) 
+    # 환경 변수에서 호스트와 포트 값을 읽어오거나, 기본값을 사용
+    host = os.environ.get("HOST", "127.0.0.1")
+    port = int(os.environ.get("PORT", 8000))
+
+    # fastmcp 서버 실행 (환경 변수에서 읽은 호스트/포트 사용)
+    mcp.run(transport="streamable-http", host=host, port=port) 
