@@ -6,12 +6,16 @@ from pydantic import BaseModel
 import subprocess
 import re
 import json
+import asyncio
+from typing import Dict, Any
 
 # 서버 설정 구조를 Pydantic 모델로 정의
 class ServerConfig(BaseModel):
     HOST: str = "127.0.0.1"
     PORT: int = 8000
     MCP_PATH: str = "/mcp"
+    TIMEOUT: int = 60  # 타임아웃 시간 증가
+    MAX_WORKERS: int = 4
     # 필요한 다른 설정 옵션이 있다면 여기에 추가
 
 # 환경 변수에서 MCP 경로를 읽어오거나, 기본값 "/mcp" 사용
@@ -24,17 +28,25 @@ mcp = FastMCP(
     "Dreamhack MCP",
     path=mcp_path,
     config_schema=ServerConfig,
-    lazy_load=True,  # 지연 로딩 활성화
-    timeout=30,  # 타임아웃 설정 (초)
-    max_workers=4  # 최대 워커 수 설정
+    lazy_load=True,
+    timeout=60,  # 타임아웃 시간 증가
+    max_workers=4,
+    tool_scan_timeout=60  # 도구 스캔 타임아웃 설정
 )
 
 # 세션 전역 관리
 session = None
 
+# 도구 등록을 위한 데코레이터
+def register_tool(func):
+    @mcp.tool()
+    async def wrapper(*args, **kwargs):
+        return await asyncio.to_thread(func, *args, **kwargs)
+    return wrapper
+
 # -------------------- TOOLS --------------------
 
-@mcp.tool()
+@register_tool
 def dreamhack_login(email: str, password: str) -> dict:
     """Dreamhack 로그인"""
     global session
@@ -50,7 +62,7 @@ def dreamhack_login(email: str, password: str) -> dict:
         return {"error": "No session cookies found"}
     return {"success": True, "cookies": cookies, "message": "Login successful"}
 
-@mcp.tool()
+@register_tool
 def fetch_problems() -> dict:
     """문제 전체 목록 가져오기"""
     global session
@@ -87,7 +99,7 @@ def fetch_problems() -> dict:
         page += 1
     return {"success": True, "total_problems": len(problems), "problems": problems}
 
-@mcp.tool()
+@register_tool
 def fetch_problems_by_difficulty(difficulty: str = "all") -> dict:
     """난이도별 문제 목록 가져오기"""
     global session
@@ -121,7 +133,7 @@ def fetch_problems_by_difficulty(difficulty: str = "all") -> dict:
         page += 1
     return {"success": True, "total_problems": len(problems), "difficulty": difficulty, "problems": problems}
 
-@mcp.tool()
+@register_tool
 def download_challenge(url: str, title: str) -> dict:
     """문제 파일 다운로드 및 압축 해제"""
     global session
@@ -167,7 +179,7 @@ def download_challenge(url: str, title: str) -> dict:
                 files.extend([os.path.join(problem_dir, f) for f in extracted_files])
     return {"success": True, "title": safe_title, "files": files}
 
-@mcp.tool()
+@register_tool
 def deploy_challenge(challenge_dir: str) -> dict:
     """문제 디렉토리에서 Docker 또는 app.py로 배포"""
     try:
@@ -212,7 +224,7 @@ def deploy_challenge(challenge_dir: str) -> dict:
     except Exception as e:
         return {"error": str(e)}
 
-@mcp.tool()
+@register_tool
 def stop_challenge(deployment_type: str, image_name: str = None, process_id: int = None) -> dict:
     """배포된 문제 서버 중지"""
     if deployment_type == 'docker':
@@ -235,7 +247,7 @@ def stop_challenge(deployment_type: str, image_name: str = None, process_id: int
     else:
         return {"error": "Unknown deployment_type"}
 
-@mcp.tool()
+@register_tool
 def submit_flag(url: str, flag: str) -> dict:
     """문제의 flag 제출"""
     global session
@@ -330,22 +342,27 @@ def challenge_files_resource(title: str):
     return [os.path.join(safe_title, f) for f in os.listdir(safe_title)]
 
 @mcp.resource("health")
-def health_check():
+async def health_check() -> Dict[str, Any]:
     """서버 상태 확인을 위한 헬스 체크 엔드포인트"""
-    return {"status": "healthy"}
+    return {
+        "status": "healthy",
+        "tools_loaded": len(mcp.tools),
+        "version": "1.0.0"
+    }
 
 if __name__ == "__main__":
     # 환경 변수에서 호스트와 포트 값을 읽어오거나, 기본값을 사용
     host = os.environ.get("HOST", "127.0.0.1")
     port = int(os.environ.get("PORT", 8000))
 
-    # fastmcp 서버 실행 (환경 변수에서 읽은 호스트/포트 사용)
+    # fastmcp 서버 실행
     mcp.run(
         transport="streamable-http",
         host=host,
         port=port,
-        lazy_load=True,  # 지연 로딩 활성화
-        timeout=30,  # 타임아웃 설정 (초)
-        max_workers=4,  # 최대 워커 수 설정
-        log_level="info"  # 로그 레벨 설정
+        lazy_load=True,
+        timeout=60,
+        max_workers=4,
+        tool_scan_timeout=60,
+        log_level="debug"  # 디버그 로그 활성화
     ) 
