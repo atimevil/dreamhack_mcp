@@ -2,14 +2,25 @@ from fastmcp import FastMCP, Context
 import requests
 from bs4 import BeautifulSoup
 import os
+from pydantic import BaseModel
 import subprocess
 import re
 import json
 
+# 서버 설정 구조를 Pydantic 모델로 정의
+class ServerConfig(BaseModel):
+    HOST: str = "127.0.0.1"
+    PORT: int = 8000
+    MCP_PATH: str = "/mcp"
+    # 필요한 다른 설정 옵션이 있다면 여기에 추가
+
 # 환경 변수에서 MCP 경로를 읽어오거나, 기본값 "/mcp" 사용
+# 이 부분은 Pydantic 모델에서 기본값을 제공하므로 필요 없을 수 있으나,
+# 현재 코드 구조를 유지하기 위해 남겨둡니다.
 mcp_path = os.environ.get("MCP_PATH", "/mcp")
 
-mcp = FastMCP("Dreamhack MCP", path=mcp_path)
+# FastMCP 객체 생성 시 config_schema 인자로 Pydantic 모델 전달
+mcp = FastMCP("Dreamhack MCP", path=mcp_path, config_schema=ServerConfig)
 
 # 세션 전역 관리
 session = None
@@ -253,6 +264,9 @@ def challenge_files_resource(title: str):
 
 if __name__ == "__main__":
     # 환경 변수에서 호스트와 포트 값을 읽어오거나, 기본값을 사용
+    # 이 부분도 Pydantic 모델에서 처리할 수 있지만, 현재 코드는 os.environ.get을 사용
+    # Pydantic 설정을 사용하려면 mcp = FastMCP("...", config=ServerConfig()) 형태로 변경 필요
+    # 하지만 현재 구조에서는 os.environ.get 방식을 유지하는 것이 더 간단합니다.
     host = os.environ.get("HOST", "127.0.0.1")
     port = int(os.environ.get("PORT", 8000))
 
