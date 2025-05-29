@@ -27,7 +27,7 @@ mcp_path = os.environ.get("MCP_PATH", "/mcp")
 mcp = FastMCP(
     "Dreamhack MCP",
     path="/mcp",
-    lazy_load=False  # 도구 스캔을 위해 lazy_load 비활성화
+    lazy_load=True  # 도구 스캔을 위해 lazy_load 비활성화
 )
 
 # 세션 전역 관리
@@ -361,5 +361,5 @@ if __name__ == "__main__":
         transport="streamable-http",
         host=host,
         port=port,
-        lazy_load=False  # 도구 스캔을 위해 lazy_load 비활성화
+        lazy_load=True  # 도구 스캔을 위해 lazy_load 비활성화
     ) 
