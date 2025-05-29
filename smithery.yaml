@@ -13,11 +13,11 @@ startCommand:
       session_timeout:
         type: integer
         description: "Session timeout in seconds"
-        default: 3600
+        default: 36000
       max_sessions:
         type: integer
         description: "Maximum number of concurrent sessions"
-        default: 100
+        default: 1000
     required: []
 
 run:
@@ -32,9 +32,9 @@ run:
   environment:
     PYTHONUNBUFFERED: "1"  # Ensure Python output is not buffered
     PYTHONDONTWRITEBYTECODE: "1"  # Don't write .pyc files
-    MCP_SESSION_TIMEOUT: "3600"  # Session timeout in seconds
-    MCP_MAX_SESSIONS: "100"  # Maximum concurrent sessions
-    MCP_STREAM_TIMEOUT: "300"  # Stream timeout in seconds
+    MCP_SESSION_TIMEOUT: "360000"  # Session timeout in seconds
+    MCP_MAX_SESSIONS: "1000"  # Maximum concurrent sessions
+    MCP_STREAM_TIMEOUT: "30000"  # Stream timeout in seconds
     MCP_ENABLE_SSE: "true"  # Enable Server-Sent Events
 
   # Resource limits
