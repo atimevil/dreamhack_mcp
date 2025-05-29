@@ -15,13 +15,10 @@ class ServerConfig(BaseModel):
     HOST: str = "127.0.0.1"
     PORT: int = 8000
     MCP_PATH: str = "/mcp"
-    TIMEOUT: int = 60  # 타임아웃 시간 증가
+    TIMEOUT: int = 60000  # 타임아웃 시간 증가
     MAX_WORKERS: int = 4
-    # 필요한 다른 설정 옵션이 있다면 여기에 추가
 
 # 환경 변수에서 MCP 경로를 읽어오거나, 기본값 "/mcp" 사용
-# 이 부분은 Pydantic 모델에서 기본값을 제공하므로 필요 없을 수 있으나,
-# 현재 코드 구조를 유지하기 위해 남겨둡니다.
 mcp_path = os.environ.get("MCP_PATH", "/mcp")
 
 # FastMCP 객체 생성
@@ -48,9 +45,7 @@ def test_tool() -> dict:
 mcp.tool()(connect)
 mcp.tool()(test_tool)
 
-# -------------------- TOOLS --------------------
-"""
-@register_tool
+@mcp.tool()
 def dreamhack_login(email: str, password: str) -> dict:
     # Dreamhack 로그인
     global session
@@ -66,7 +61,7 @@ def dreamhack_login(email: str, password: str) -> dict:
         return {"error": "No session cookies found"}
     return {"success": True, "cookies": cookies, "message": "Login successful"}
 
-@register_tool
+@mcp.tool()
 def fetch_problems() -> dict:
     # 문제 전체 목록 가져오기
     global session
@@ -103,7 +98,7 @@ def fetch_problems() -> dict:
         page += 1
     return {"success": True, "total_problems": len(problems), "problems": problems}
 
-@register_tool
+@mcp.tool()
 def fetch_problems_by_difficulty(difficulty: str = "all") -> dict:
     # 난이도별 문제 목록 가져오기
     global session
@@ -137,7 +132,7 @@ def fetch_problems_by_difficulty(difficulty: str = "all") -> dict:
         page += 1
     return {"success": True, "total_problems": len(problems), "difficulty": difficulty, "problems": problems}
 
-@register_tool
+@mcp.tool()
 def download_challenge(url: str, title: str) -> dict:
     # 문제 파일 다운로드 및 압축 해제
     global session
@@ -183,7 +178,7 @@ def download_challenge(url: str, title: str) -> dict:
                 files.extend([os.path.join(problem_dir, f) for f in extracted_files])
     return {"success": True, "title": safe_title, "files": files}
 
-@register_tool
+@mcp.tool()
 def deploy_challenge(challenge_dir: str) -> dict:
     # 문제 디렉토리에서 Docker 또는 app.py로 배포
     try:
@@ -228,7 +223,7 @@ def deploy_challenge(challenge_dir: str) -> dict:
     except Exception as e:
         return {"error": str(e)}
 
-@register_tool
+@mcp.tool()
 def stop_challenge(deployment_type: str, image_name: str = None, process_id: int = None) -> dict:
     # 배포된 문제 서버 중지
     if deployment_type == 'docker':
@@ -251,7 +246,7 @@ def stop_challenge(deployment_type: str, image_name: str = None, process_id: int
     else:
         return {"error": "Unknown deployment_type"}
 
-@register_tool
+@mcp.tool()
 def submit_flag(url: str, flag: str) -> dict:
     # 문제의 flag 제출
     global session
@@ -306,10 +301,7 @@ def submit_flag(url: str, flag: str) -> dict:
 
     except Exception as e:
         return {"error": str(e)}
-"""
 
-# -------------------- PROMPTS --------------------
-"""
 @mcp.prompt()
 def login_prompt(email: str) -> str:
     return f"Dreamhack 계정 {email}로 로그인 시도 중입니다."
@@ -325,10 +317,7 @@ def deploy_prompt(title: str) -> str:
 @mcp.prompt()
 def submit_flag_prompt(url: str) -> str:
     return f"문제 페이지 {url}에 flag를 제출합니다. 계속하시겠습니까?"
-"""
 
-# -------------------- RESOURCES --------------------
-"""
 @mcp.resource("problems://all")
 def all_problems_resource():
     # 전체 문제 목록을 리소스로 제공
@@ -346,14 +335,11 @@ def challenge_files_resource(title: str):
     if not os.path.exists(safe_title):
         return []
     return [os.path.join(safe_title, f) for f in os.listdir(safe_title)]
-"""
 
 if __name__ == "__main__":
-    # Smithery.ai에서는 process.env.PORT를 사용
     port = int(os.environ.get("PORT", 8000))
-    host = "0.0.0.0"  # 모든 인터페이스에서 수신
+    host = "0.0.0.0"
 
-    # fastmcp 서버 실행
     mcp.run(
         transport="streamable-http",
         host=host,
