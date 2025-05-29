@@ -8,7 +8,6 @@ import re
 import json
 import asyncio
 from typing import Dict, Any
-import uuid
 
 # 서버 설정 구조를 Pydantic 모델로 정의
 class ServerConfig(BaseModel):
@@ -20,8 +19,6 @@ class ServerConfig(BaseModel):
     # 필요한 다른 설정 옵션이 있다면 여기에 추가
 
 # 환경 변수에서 MCP 경로를 읽어오거나, 기본값 "/mcp" 사용
-# 이 부분은 Pydantic 모델에서 기본값을 제공하므로 필요 없을 수 있으나,
-# 현재 코드 구조를 유지하기 위해 남겨둡니다.
 mcp_path = os.environ.get("MCP_PATH", "/mcp")
 
 # FastMCP 객체 생성
@@ -34,12 +31,15 @@ mcp = FastMCP(
 
 # 세션 전역 관리
 session = None
+session_id = None  # 세션 ID 추가
 
-# 도구 등록을 위한 데코레이터
+# 도구 등록을 위한 데코레이터 (session_id 체크 로직 제거)
 def register_tool(func):
     @mcp.tool()
     async def wrapper(*args, **kwargs):
-        # Let MCP handle session management
+        # session_id 체크 로직을 각 도구 함수 내부로 이동하거나,
+        # 도구 실행 시에만 필요한 경우 여기에 둘 수 있지만, 스캔 시에는 불필요함.
+        # 현재는 wrapper에서 직접 session_id를 사용하지 않으므로, 이 데코레이터는 단순히 mcp.tool()을 적용하는 역할만 함.
         return await asyncio.to_thread(func, *args, **kwargs)
     return wrapper
 
@@ -48,7 +48,7 @@ def register_tool(func):
 @register_tool
 def dreamhack_login(email: str, password: str) -> dict:
     """Dreamhack 로그인"""
-    global session
+    global session, session_id # session_id도 여기서 설정
     session = requests.Session()
     email_exist_resp = session.post("https://dreamhack.io/api/v1/auth/email-exist/", json={'email': email})
     if email_exist_resp.status_code != 200:
@@ -59,13 +59,18 @@ def dreamhack_login(email: str, password: str) -> dict:
     cookies = session.cookies.get_dict()
     if not cookies:
         return {"error": "No session cookies found"}
+    
+    # 로그인 성공 시 session_id 설정 (실제 세션 ID가 필요하다면 쿠키 등에서 추출)
+    # 여기서는 간단히 로그인 성공 여부를 나타내는 값을 할당
+    session_id = "dreamhack_session_active" 
+    
     return {"success": True, "cookies": cookies, "message": "Login successful"}
 
 @register_tool
 def fetch_problems() -> dict:
     """문제 전체 목록 가져오기"""
     global session
-    if not session:
+    if not session: # 세션 유효성 검사는 각 도구 함수 내에서 수행
         return {"error": "Not logged in"}
     problems = []
     page = 1
@@ -102,7 +107,7 @@ def fetch_problems() -> dict:
 def fetch_problems_by_difficulty(difficulty: str = "all") -> dict:
     """난이도별 문제 목록 가져오기"""
     global session
-    if not session:
+    if not session: # 세션 유효성 검사는 각 도구 함수 내에서 수행
         return {"error": "Not logged in"}
     problems = []
     page = 1
@@ -136,7 +141,7 @@ def fetch_problems_by_difficulty(difficulty: str = "all") -> dict:
 def download_challenge(url: str, title: str) -> dict:
     """문제 파일 다운로드 및 압축 해제"""
     global session
-    if not session:
+    if not session: # 세션 유효성 검사는 각 도구 함수 내에서 수행
         return {"error": "Not logged in"}
     if not url or not title:
         return {"error": "url and title required"}
@@ -181,6 +186,7 @@ def download_challenge(url: str, title: str) -> dict:
 @register_tool
 def deploy_challenge(challenge_dir: str) -> dict:
     """문제 디렉토리에서 Docker 또는 app.py로 배포"""
+    # 이 함수는 세션과 직접적인 관련이 없으므로 session_id 체크 불필요
     try:
         problem_dirs = [d for d in os.listdir(challenge_dir) if os.path.isdir(os.path.join(challenge_dir, d)) and d != '__pycache__']
         if not problem_dirs:
@@ -226,6 +232,7 @@ def deploy_challenge(challenge_dir: str) -> dict:
 @register_tool
 def stop_challenge(deployment_type: str, image_name: str = None, process_id: int = None) -> dict:
     """배포된 문제 서버 중지"""
+    # 이 함수는 세션과 직접적인 관련이 없으므로 session_id 체크 불필요
     if deployment_type == 'docker':
         if not image_name:
             return {"error": "image_name is required"}
@@ -250,7 +257,7 @@ def stop_challenge(deployment_type: str, image_name: str = None, process_id: int
 def submit_flag(url: str, flag: str) -> dict:
     """문제의 flag 제출"""
     global session
-    if not session:
+    if not session: # 세션 유효성 검사는 각 도구 함수 내에서 수행
         return {"error": "Not logged in"}
 
     try:
@@ -305,7 +312,7 @@ def submit_flag(url: str, flag: str) -> dict:
 @mcp.tool()
 def connect() -> dict:
     """Connect to the server"""
-    return {"message": "Connected successfully. Please login to use tools."}
+    return {"message": "No configuration needed. Connect to run tools."}
 
 # -------------------- PROMPTS --------------------
 
@@ -330,16 +337,19 @@ def submit_flag_prompt(url: str) -> str:
 @mcp.resource("problems://all")
 def all_problems_resource():
     """전체 문제 목록을 리소스로 제공"""
+    # 리소스는 도구와 다르게 직접적으로 세션에 의존하지 않으므로 session_id 체크 불필요
     return fetch_problems()["problems"]
 
 @mcp.resource("problems://{difficulty}")
 def problems_by_difficulty_resource(difficulty: str):
     """난이도별 문제 목록 리소스"""
+    # 리소스는 도구와 다르게 직접적으로 세션에 의존하지 않으므로 session_id 체크 불필요
     return fetch_problems_by_difficulty(difficulty)["problems"]
 
 @mcp.resource("challenge://{title}/files")
 def challenge_files_resource(title: str):
     """다운로드된 문제 파일 목록 리소스"""
+    # 이 리소스는 로컬 파일 시스템을 읽으므로 세션과 직접적인 관련 없음
     safe_title = re.sub(r'[<>:"/\\|?*]', '_', title)
     if not os.path.exists(safe_title):
         return []
@@ -359,4 +369,4 @@ if __name__ == "__main__":
         session_management=True,  # 세션 관리 활성화
         stream_resumable=True,  # 스트림 재개 지원
         error_handling=True  # 에러 처리 활성화
-    ) 
+    )
