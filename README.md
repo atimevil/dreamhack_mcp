@@ -1,4 +1,4 @@
-# Dreamhack MCP Server
+# Dreamhack MCP Server - Structing
 
 This project implements a Model Context Protocol (MCP) server using the fastmcp library to interact with the Dreamhack wargame platform. It provides tools and resources to automate tasks such as fetching problem lists, downloading challenge files, and deploying them locally.
 
