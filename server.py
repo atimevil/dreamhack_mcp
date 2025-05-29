@@ -27,16 +27,21 @@ mcp_path = os.environ.get("MCP_PATH", "/mcp")
 mcp = FastMCP(
     "Dreamhack MCP",
     path="/mcp",
-    lazy_load=True  # 도구 스캔을 위해 lazy_load 비활성화
+    lazy_load=True,  # 도구 목록 조회를 위해 lazy loading 활성화
+    session_management=True  # 세션 관리 활성화
 )
 
 # 세션 전역 관리
 session = None
+session_id = None  # 세션 ID 추가
 
 # 도구 등록을 위한 데코레이터
 def register_tool(func):
     @mcp.tool()
     async def wrapper(*args, **kwargs):
+        global session_id
+        if not session_id:
+            return {"error": "No active session"}
         return await asyncio.to_thread(func, *args, **kwargs)
     return wrapper
 
@@ -342,15 +347,6 @@ def challenge_files_resource(title: str):
         return []
     return [os.path.join(safe_title, f) for f in os.listdir(safe_title)]
 
-@mcp.resource("health")
-async def health_check() -> Dict[str, Any]:
-    """서버 상태 확인을 위한 헬스 체크 엔드포인트"""
-    return {
-        "status": "healthy",
-        "tools_loaded": len(mcp.tools),
-        "version": "1.0.0"
-    }
-
 if __name__ == "__main__":
     # Smithery.ai에서는 process.env.PORT를 사용
     port = int(os.environ.get("PORT", 8000))
@@ -361,5 +357,8 @@ if __name__ == "__main__":
         transport="streamable-http",
         host=host,
         port=port,
-        lazy_load=True  # 도구 스캔을 위해 lazy_load 비활성화
+        lazy_load=True,  # 도구 목록 조회를 위해 lazy loading 활성화
+        session_management=True,  # 세션 관리 활성화
+        stream_resumable=True,  # 스트림 재개 지원
+        error_handling=True  # 에러 처리 활성화
     ) 
