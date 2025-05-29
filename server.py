@@ -28,7 +28,7 @@ mcp_path = os.environ.get("MCP_PATH", "/mcp")
 mcp = FastMCP(
     "Dreamhack MCP",
     path="/mcp",
-    lazy_load=True  # 명시적으로 lazy loading 활성화
+    lazy_load=True
 )
 
 # 세션 전역 관리
