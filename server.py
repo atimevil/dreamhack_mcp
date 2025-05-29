@@ -8,6 +8,7 @@ import re
 import json
 import asyncio
 from typing import Dict, Any
+import uuid
 
 # 서버 설정 구조를 Pydantic 모델로 정의
 class ServerConfig(BaseModel):
@@ -33,15 +34,12 @@ mcp = FastMCP(
 
 # 세션 전역 관리
 session = None
-session_id = None  # 세션 ID 추가
 
 # 도구 등록을 위한 데코레이터
 def register_tool(func):
     @mcp.tool()
     async def wrapper(*args, **kwargs):
-        global session_id
-        if not session_id:
-            return {"error": "No active session"}
+        # Let MCP handle session management
         return await asyncio.to_thread(func, *args, **kwargs)
     return wrapper
 
@@ -307,7 +305,7 @@ def submit_flag(url: str, flag: str) -> dict:
 @mcp.tool()
 def connect() -> dict:
     """Connect to the server"""
-    return {"message": "No configuration needed. Connect to run tools."}
+    return {"message": "Connected successfully. Please login to use tools."}
 
 # -------------------- PROMPTS --------------------
 
