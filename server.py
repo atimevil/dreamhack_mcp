@@ -15,7 +15,7 @@ class ServerConfig(BaseModel):
     HOST: str = "127.0.0.1"
     PORT: int = 8000
     MCP_PATH: str = "/mcp"
-    TIMEOUT: int = 6000  # 타임아웃 시간 증가
+    TIMEOUT: int = 60  # 타임아웃 시간 증가
     MAX_WORKERS: int = 4
     # 필요한 다른 설정 옵션이 있다면 여기에 추가
 
@@ -27,7 +27,8 @@ mcp_path = os.environ.get("MCP_PATH", "/mcp")
 # FastMCP 객체 생성
 mcp = FastMCP(
     "Dreamhack MCP",
-    path="/mcp"
+    path="/mcp",
+    tools=["connect", "test_tool"]  # 명시적으로 도구 목록 설정
 )
 
 # 세션 전역 관리
