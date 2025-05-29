@@ -7,377 +7,155 @@ import subprocess
 import re
 import json
 import asyncio
+import logging
 from typing import Dict, Any
 
-# 서버 설정 구조를 Pydantic 모델로 정의
+# Configure logging for detailed output
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# Server configuration defined as a Pydantic model
 class ServerConfig(BaseModel):
     HOST: str = "127.0.0.1"
     PORT: int = 8000
     MCP_PATH: str = "/mcp"
-    TIMEOUT: int = 60  # 타임아웃 시간 증가
+    TIMEOUT: int = 60  # Increased timeout
     MAX_WORKERS: int = 4
-    # 필요한 다른 설정 옵션이 있다면 여기에 추가
+    # Add other necessary configuration options here
 
-# 환경 변수에서 MCP 경로를 읽어오거나, 기본값 "/mcp" 사용
+# Read MCP path from environment variable or use default "/mcp"
 mcp_path = os.environ.get("MCP_PATH", "/mcp")
 
-# FastMCP 객체 생성
+# Create FastMCP object
 mcp = FastMCP(
     "Dreamhack MCP",
     path="/mcp",
-    lazy_load=True,  # 도구 목록 조회를 위해 lazy loading 활성화
-    session_management=True  # 세션 관리 활성화
+    lazy_load=True,  # Enable lazy loading for tool list lookup
+    session_management=True  # Enable session management
 )
 
-# 세션 전역 관리
+# Global session management (kept for consistency, but not used in this minimal version)
 session = None
-session_id = None  # 세션 ID 추가
+session_id = None
 
-# 도구 등록을 위한 데코레이터
+# Decorator for tool registration (kept as is)
 def register_tool(func):
     @mcp.tool()
     async def wrapper(*args, **kwargs):
-        # 여기서는 session_id 체크를 하지 않습니다.
-        # 실제 도구 실행 시 각 함수 내에서 로그인 여부를 확인합니다.
+        logger.debug(f"Calling tool wrapper: {func.__name__}")
         return await asyncio.to_thread(func, *args, **kwargs)
     return wrapper
 
 # -------------------- TOOLS --------------------
 
-@register_tool
-def dreamhack_login(email: str, password: str) -> dict:
-    """Dreamhack 로그인"""
-    global session, session_id
-    session = requests.Session()
-    email_exist_resp = session.post("https://dreamhack.io/api/v1/auth/email-exist/", json={'email': email})
-    if email_exist_resp.status_code != 200:
-        return {"error": "Email existence check failed"}
-    login_resp = session.post("https://dreamhack.io/api/v1/auth/login/", json={'email': email, 'password': password})
-    if login_resp.status_code != 200:
-        return {"error": "Login failed"}
-    cookies = session.cookies.get_dict()
-    if not cookies:
-        return {"error": "No session cookies found"}
-    
-    # 로그인 성공 시 session_id 설정 (예시 값)
-    session_id = "dreamhack_session_active" 
-    
-    return {"success": True, "cookies": cookies, "message": "Login successful"}
+# ONLY THE 'connect' tool is enabled for testing purposes.
+# All other tools are commented out to isolate the issue.
 
-@register_tool
-def fetch_problems() -> dict:
-    """문제 전체 목록 가져오기"""
-    global session
-    if not session:
-        return {"error": "Not logged in"}
-    problems = []
-    page = 1
-    while True:
-        res = session.get(f"https://dreamhack.io/wargame?category=web&page={page}")
-        soup = BeautifulSoup(res.text, "html.parser")
-        all_rows = soup.select(".challenge-row")
-        if not all_rows:
-            break
-        for row in all_rows:
-            cat = row.select_one(".challenge-category")
-            title = row.select_one(".title-text")
-            link = row.select_one("a.title")
-            if not (cat and title and link):
-                continue
-            level_img = row.select_one(".wargame-level")
-            difficulty = "Unknown"
-            if level_img and 'src' in level_img.attrs:
-                src = level_img['src']
-                for d in "12345":
-                    if d in src:
-                        difficulty = d
-                        break
-            problems.append({
-                "title": title.text.strip(),
-                "category": cat.text.strip(),
-                "difficulty": difficulty,
-                "link": "https://dreamhack.io" + link["href"]
-            })
-        page += 1
-    return {"success": True, "total_problems": len(problems), "problems": problems}
+# @register_tool
+# def dreamhack_login(email: str, password: str) -> dict:
+#     """Dreamhack 로그인"""
+#     # ... (commented out) ...
+#     pass
 
-@register_tool
-def fetch_problems_by_difficulty(difficulty: str = "all") -> dict:
-    """난이도별 문제 목록 가져오기"""
-    global session
-    if not session:
-        return {"error": "Not logged in"}
-    problems = []
-    page = 1
-    difficulty_map = {'beginner': 'beginner', '1': '1', '2': '2', '3': '3', '4': '4', '5': '5'}
-    while True:
-        url = f"https://dreamhack.io/wargame?category=web&page={page}"
-        if difficulty != 'all':
-            url += f"&difficulty={difficulty_map.get(difficulty, difficulty)}"
-        res = session.get(url)
-        soup = BeautifulSoup(res.text, "html.parser")
-        all_rows = soup.select(".challenge-row")
-        if not all_rows:
-            break
-        for row in all_rows:
-            cat = row.select_one(".challenge-category")
-            title = row.select_one(".title-text")
-            link = row.select_one("a.title")
-            if not (cat and title and link):
-                continue
-            current_difficulty = difficulty if difficulty != 'all' else "Unknown"
-            problems.append({
-                "title": title.text.strip(),
-                "category": cat.text.strip(),
-                "difficulty": current_difficulty,
-                "link": "https://dreamhack.io" + link["href"]
-            })
-        page += 1
-    return {"success": True, "total_problems": len(problems), "difficulty": difficulty, "problems": problems}
+# @register_tool
+# def fetch_problems() -> dict:
+#     """문제 전체 목록 가져오기"""
+#     # ... (commented out) ...
+#     pass
 
-@register_tool
-def download_challenge(url: str, title: str) -> dict:
-    """문제 파일 다운로드 및 압축 해제"""
-    global session
-    if not session:
-        return {"error": "Not logged in"}
-    if not url or not title:
-        return {"error": "url and title required"}
-    if not url.startswith('http'):
-        url = "https://dreamhack.io" + url
-    res = session.get(url)
-    soup = BeautifulSoup(res.text, "html.parser")
-    download_links = soup.select(".challenge-download")
-    if not download_links:
-        return {"error": "No download links found"}
-    files = []
-    downloaded_urls = set()
-    safe_title = re.sub(r'[<>:"/\\|?*]', '_', title)
-    for link in download_links:
-        href = link.get('href')
-        if not href:
-            continue
-        file_url = href if href.startswith('http') else "https://dreamhack.io" + href
-        if file_url in downloaded_urls:
-            continue
-        downloaded_urls.add(file_url)
-        file_name = href.split('/')[-1].split('?')[0]
-        file_res = session.get(file_url)
-        if file_res.status_code == 200:
-            problem_dir = safe_title
-            if not os.path.exists(problem_dir):
-                os.makedirs(problem_dir)
-            file_path = os.path.join(problem_dir, file_name)
-            with open(file_path, 'wb') as f:
-                f.write(file_res.content)
-            files.append(file_path)
-            if file_name.endswith('.zip'):
-                import zipfile
-                with zipfile.ZipFile(file_path, 'r') as zip_ref:
-                    zip_ref.extractall(problem_dir)
-                os.remove(file_path)
-                files.remove(file_path)
-                extracted_files = os.listdir(problem_dir)
-                files.extend([os.path.join(problem_dir, f) for f in extracted_files])
-    return {"success": True, "title": safe_title, "files": files}
+# @register_tool
+# def fetch_problems_by_difficulty(difficulty: str = "all") -> dict:
+#     """난이도별 문제 목록 가져오기"""
+#     # ... (commented out) ...
+#     pass
 
-@register_tool
-def deploy_challenge(challenge_dir: str) -> dict:
-    """문제 디렉토리에서 Docker 또는 app.py로 배포"""
-    try:
-        problem_dirs = [d for d in os.listdir(challenge_dir) if os.path.isdir(os.path.join(challenge_dir, d)) and d != '__pycache__']
-        if not problem_dirs:
-            return {"error": "No problem directory found"}
-        problem_dir = os.path.join(challenge_dir, problem_dirs[-1])
-        if os.path.exists(os.path.join(problem_dir, 'Dockerfile')):
-            image_name = f"challenge-{os.path.basename(problem_dir)}"
-            docker_path = problem_dir.replace('\\', '/')
-            build_cmd = f'docker build -t {image_name} "{docker_path}"'
-            subprocess.run(build_cmd, shell=True, check=True)
-            stop_cmd = f"docker stop {image_name} 2>nul || true"
-            rm_cmd = f"docker rm {image_name} 2>nul || true"
-            subprocess.run(stop_cmd, shell=True)
-            subprocess.run(rm_cmd, shell=True)
-            run_cmd = f"docker run -d --name {image_name} -p 8000:8000 {image_name}"
-            subprocess.run(run_cmd, shell=True, check=True)
-            ps_cmd = f"docker ps --filter name={image_name}"
-            result = subprocess.run(ps_cmd, shell=True, capture_output=True, text=True)
-            if image_name not in result.stdout:
-                return {"error": "Container failed to start"}
-            return {"success": True, "message": f"Challenge deployed at http://localhost:8000", "image_name": image_name, "deployment_type": "docker"}
-        elif os.path.exists(os.path.join(problem_dir, 'app.py')):
-            app_path = os.path.join(problem_dir, 'app.py')
-            if os.path.exists(os.path.join(problem_dir, 'requirements.txt')):
-                subprocess.run(f"pip install -r {os.path.join(problem_dir, 'requirements.txt')}", shell=True, check=True)
-            else:
-                subprocess.run("pip install flask", shell=True, check=True)
-            if os.name == 'nt':
-                startupinfo = subprocess.STARTUPINFO()
-                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                process = subprocess.Popen(['python', app_path], startupinfo=startupinfo, creationflags=subprocess.CREATE_NEW_CONSOLE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=problem_dir)
-            else:
-                process = subprocess.Popen(['python3', app_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=problem_dir)
-            if process.poll() is not None:
-                stdout, stderr = process.communicate()
-                return {"error": f"Failed to start app.py. Exit code: {process.returncode}"}
-            return {"success": True, "message": f"Challenge deployed at http://localhost:8000", "process_id": process.pid, "deployment_type": "python"}
-        else:
-            return {"error": "Neither Dockerfile nor app.py found in challenge directory"}
-    except Exception as e:
-        return {"error": str(e)}
+# @register_tool
+# def download_challenge(url: str, title: str) -> dict:
+#     """문제 파일 다운로드 및 압축 해제"""
+#     # ... (commented out) ...
+#     pass
 
-@register_tool
-def stop_challenge(deployment_type: str, image_name: str = None, process_id: int = None) -> dict:
-    """배포된 문제 서버 중지"""
-    if deployment_type == 'docker':
-        if not image_name:
-            return {"error": "image_name is required"}
-        stop_cmd = f"docker stop {image_name}"
-        rm_cmd = f"docker rm {image_name}"
-        subprocess.run(stop_cmd, shell=True)
-        subprocess.run(rm_cmd, shell=True)
-        return {"success": True, "message": f"Docker container {image_name} stopped and removed."}
-    elif deployment_type == 'python':
-        if not process_id:
-            return {"error": "process_id is required"}
-        if os.name == 'nt':
-            kill_cmd = f"taskkill /PID {process_id} /F"
-        else:
-            kill_cmd = f"kill -9 {process_id}"
-        subprocess.run(kill_cmd, shell=True)
-        return {"success": True, "message": f"Python process {process_id} killed."}
-    else:
-        return {"error": "Unknown deployment_type"}
+# @register_tool
+# def deploy_challenge(challenge_dir: str) -> dict:
+#     """문제 디렉토리에서 Docker 또는 app.py로 배포"""
+#     # ... (commented out) ...
+#     pass
 
-@register_tool
-def submit_flag(url: str, flag: str) -> dict:
-    """문제의 flag 제출"""
-    global session
-    if not session:
-        return {"error": "Not logged in"}
+# @register_tool
+# def stop_challenge(deployment_type: str, image_name: str = None, process_id: int = None) -> dict:
+#     """배포된 문제 서버 중지"""
+#     # ... (commented out) ...
+#     pass
 
-    try:
-        if not url or not flag:
-            return {"error": "url and flag are required"}
-
-        # URL이 상대 경로인 경우 절대 경로로 변환
-        if not url.startswith('http'):
-            url = "https://dreamhack.io" + url
-
-        # 문제 페이지 접근
-        res = session.get(url)
-        if res.status_code != 200:
-            return {"error": f"Failed to access challenge page: {res.status_code}"}
-
-        # CSRF 토큰 추출
-        soup = BeautifulSoup(res.text, "html.parser")
-        csrf_token = soup.find('meta', {'name': 'csrf-token'})
-        if not csrf_token:
-            return {"error": "CSRF token not found"}
-
-        # Flag 제출
-        submit_url = f"{url}/submit"
-        headers = {
-            'X-CSRFToken': csrf_token['content'],
-            'Content-Type': 'application/json',
-            'Referer': url
-        }
-        
-        submit_data = {
-            'flag': flag
-        }
-        
-        submit_resp = session.post(submit_url, json=submit_data, headers=headers)
-        
-        if submit_resp.status_code == 200:
-            result = submit_resp.json()
-            return {
-                "success": True,
-                "message": result.get('message', 'Flag submitted successfully'),
-                "result": result
-            }
-        else:
-            return {
-                "error": f"Failed to submit flag: {submit_resp.status_code}",
-                "details": submit_resp.text
-            }
-
-    except Exception as e:
-        return {"error": str(e)}
+# @register_tool
+# def submit_flag(url: str, flag: str) -> dict:
+#     """문제의 flag 제출"""
+#     # ... (commented out) ...
+#     pass
 
 @mcp.tool()
 def connect() -> dict:
     """Connect to the server"""
+    logger.info("Connect tool called.")
     return {"message": "No configuration needed. Connect to run tools."}
 
 # -------------------- PROMPTS --------------------
 
-@mcp.prompt()
-def login_prompt(email: str) -> str:
-    return f"Dreamhack 계정 {email}로 로그인 시도 중입니다."
+# All prompts are commented out for this test.
 
-@mcp.prompt()
-def problem_summary_prompt(title: str, category: str, difficulty: str) -> str:
-    return f"문제: {title}\n카테고리: {category}\n난이도: {difficulty}\n이 문제를 풀어보시겠습니까?"
+# @mcp.prompt()
+# def login_prompt(email: str) -> str:
+#     # ... (commented out) ...
+#     pass
 
-@mcp.prompt()
-def deploy_prompt(title: str) -> str:
-    return f"문제 '{title}'를 서버에 배포합니다. 계속하시겠습니까?"
+# @mcp.prompt()
+# def problem_summary_prompt(title: str, category: str, difficulty: str) -> str:
+#     # ... (commented out) ...
+#     pass
 
-@mcp.prompt()
-def submit_flag_prompt(url: str) -> str:
-    return f"문제 페이지 {url}에 flag를 제출합니다. 계속하시겠습니까?"
+# @mcp.prompt()
+# def deploy_prompt(title: str) -> str:
+#     # ... (commented out) ...
+#     pass
+
+# @mcp.prompt()
+# def submit_flag_prompt(url: str) -> str:
+#     # ... (commented out) ...
+#     pass
 
 # -------------------- RESOURCES --------------------
 
-@mcp.resource("problems://all")
-def all_problems_resource():
-    """전체 문제 목록을 리소스로 제공"""
-    global session
-    # 세션이 활성화된 경우에만 실제 데이터 페치
-    if session:
-        result = fetch_problems()
-        # fetch_problems()는 {"success": True, "problems": [...]} 형태를 반환하므로,
-        # "problems" 키가 없으면 빈 리스트를 반환하도록 안전하게 처리
-        return result.get("problems", [])
-    return [] # 세션이 없으면 빈 리스트 반환
+# All resources are commented out for this test.
 
-@mcp.resource("problems://{difficulty}")
-def problems_by_difficulty_resource(difficulty: str):
-    """난이도별 문제 목록 리소스"""
-    global session
-    # 세션이 활성화된 경우에만 실제 데이터 페치
-    if session:
-        result = fetch_problems_by_difficulty(difficulty)
-        # fetch_problems_by_difficulty()도 유사하게 "problems" 키가 없으면 빈 리스트 반환
-        return result.get("problems", [])
-    return [] # 세션이 없으면 빈 리스트 반환
+# @mcp.resource("problems://all")
+# def all_problems_resource():
+#     # ... (commented out) ...
+#     pass
 
-@mcp.resource("challenge://{title}/files")
-def challenge_files_resource(title: str):
-    """다운로드된 문제 파일 목록 리소스"""
-    safe_title = re.sub(r'[<>:"/\\|?*]', '_', title)
-    if not os.path.exists(safe_title):
-        return []
-    return [os.path.join(safe_title, f) for f in os.listdir(safe_title)]
+# @mcp.resource("problems://{difficulty}")
+# def problems_by_difficulty_resource(difficulty: str):
+#     # ... (commented out) ...
+#     pass
+
+# @mcp.resource("challenge://{title}/files")
+# def challenge_files_resource(title: str):
+#     # ... (commented out) ...
+#     pass
 
 if __name__ == "__main__":
-    import logging
-
-    # 로거 설정: DEBUG 레벨로 설정하여 자세한 로그 확인
-    logging.basicConfig(level=logging.DEBUG) 
-
-    # Smithery.ai에서는 process.env.PORT를 사용
+    logger.info("Starting FastMCP server with minimal configuration (connect tool only)...")
+    # Smithery.ai uses process.env.PORT
     port = int(os.environ.get("PORT", 8000))
-    host = "0.0.0.0"  # 모든 인터페이스에서 수신
+    host = "0.0.0.0"  # Listen on all interfaces
 
-    # fastmcp 서버 실행
+    # Run FastMCP server
     mcp.run(
         transport="streamable-http",
         host=host,
         port=port,
-        lazy_load=True,  # 도구 목록 조회를 위해 lazy loading 활성화
-        session_management=True,  # 세션 관리 활성화
-        stream_resumable=True,  # 스트림 재개 지원
-        error_handling=True  # 에러 처리 활성화
+        lazy_load=True,  # Enable lazy loading for tool list lookup
+        session_management=True,  # Enable session management
+        stream_resumable=True,  # Support stream resumption
+        error_handling=True  # Enable error handling
     )
+    logger.info("FastMCP server started.")
