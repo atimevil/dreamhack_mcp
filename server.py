@@ -23,15 +23,11 @@ class ServerConfig(BaseModel):
 # 현재 코드 구조를 유지하기 위해 남겨둡니다.
 mcp_path = os.environ.get("MCP_PATH", "/mcp")
 
-# FastMCP 객체 생성 시 config_schema 인자로 Pydantic 모델 전달
+# FastMCP 객체 생성
 mcp = FastMCP(
     "Dreamhack MCP",
-    path=mcp_path,
-    config_schema=ServerConfig,
-    lazy_load=True,
-    timeout=60,  # 타임아웃 시간 증가
-    max_workers=4,
-    tool_scan_timeout=60  # 도구 스캔 타임아웃 설정
+    path="/mcp",
+    lazy_load=False  # 도구 스캔을 위해 lazy_load 비활성화
 )
 
 # 세션 전역 관리
@@ -303,6 +299,11 @@ def submit_flag(url: str, flag: str) -> dict:
     except Exception as e:
         return {"error": str(e)}
 
+@mcp.tool()
+def connect() -> dict:
+    """Connect to the server"""
+    return {"message": "No configuration needed. Connect to run tools."}
+
 # -------------------- PROMPTS --------------------
 
 @mcp.prompt()
@@ -351,19 +352,14 @@ async def health_check() -> Dict[str, Any]:
     }
 
 if __name__ == "__main__":
-    # 환경 변수에서 호스트와 포트 값을 읽어오거나, 기본값을 사용
-    host = os.environ.get("HOST", "127.0.0.1")
+    # Smithery.ai에서는 process.env.PORT를 사용
     port = int(os.environ.get("PORT", 8000))
+    host = "0.0.0.0"  # 모든 인터페이스에서 수신
 
     # fastmcp 서버 실행
     mcp.run(
         transport="streamable-http",
         host=host,
         port=port,
-        lazy_load=True,
-        timeout=60,
-        max_workers=4,
-        tool_scan_timeout=60,
-        log_level="debug",  # 디버그 로그 활성화
-        scan_tools=False  # 도구 스캔 비활성화
+        lazy_load=False  # 도구 스캔을 위해 lazy_load 비활성화
     ) 
