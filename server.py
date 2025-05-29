@@ -15,7 +15,7 @@ class ServerConfig(BaseModel):
     HOST: str = "127.0.0.1"
     PORT: int = 8000
     MCP_PATH: str = "/mcp"
-    TIMEOUT: int = 60000  # 타임아웃 시간 증가
+    TIMEOUT: int = 600000000  # 타임아웃 시간 증가
     MAX_WORKERS: int = 4
 
 # 환경 변수에서 MCP 경로를 읽어오거나, 기본값 "/mcp" 사용
