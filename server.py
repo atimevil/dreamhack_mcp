@@ -13,7 +13,7 @@ import uuid
 # 서버 설정 구조를 Pydantic 모델로 정의
 class ServerConfig(BaseModel):
     HOST: str = "127.0.0.1"
-    PORT: int = 8000
+    PORT: int = 8080
     MCP_PATH: str = "/mcp"
     TIMEOUT: int = 60000  # 타임아웃 시간 증가
     MAX_WORKERS: int = 4
@@ -332,8 +332,8 @@ def challenge_files_resource(title: str):
     return [os.path.join(safe_title, f) for f in os.listdir(safe_title)]
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))
-    host = "0.0.0.0"
+    port = int(os.environ.get("PORT", 8080))
+    host = "127.0.0.1"
 
     mcp.run(
         transport="streamable-http",
