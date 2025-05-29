@@ -27,8 +27,7 @@ mcp_path = os.environ.get("MCP_PATH", "/mcp")
 # FastMCP 객체 생성
 mcp = FastMCP(
     "Dreamhack MCP",
-    path="/mcp",
-    lazy_load=True
+    path="/mcp"
 )
 
 # 세션 전역 관리
@@ -360,6 +359,5 @@ if __name__ == "__main__":
     mcp.run(
         transport="streamable-http",
         host=host,
-        port=port,
-        lazy_load=True
+        port=port
     ) 
