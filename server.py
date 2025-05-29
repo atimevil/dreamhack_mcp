@@ -25,7 +25,6 @@ mcp_path = os.environ.get("MCP_PATH", "/mcp")
 mcp = FastMCP(
     "Dreamhack MCP",
     path="/mcp",
-    tools=["connect", "test_tool"]  # 명시적으로 도구 목록 설정
 )
 
 # 세션 전역 관리
@@ -40,10 +39,6 @@ def connect() -> dict:
 def test_tool() -> dict:
     """Simple test tool"""
     return {"message": "Test tool works!"}
-
-# 도구 직접 등록
-mcp.tool()(connect)
-mcp.tool()(test_tool)
 
 @mcp.tool()
 def dreamhack_login(email: str, password: str) -> dict:
