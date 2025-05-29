@@ -33,10 +33,12 @@ mcp = FastMCP(
 # 세션 전역 관리
 session = None
 
+@mcp.tool()
 def connect() -> dict:
     """Connect to the server"""
     return {"message": "Connected successfully"}
 
+@mcp.tool()
 def test_tool() -> dict:
     """Simple test tool"""
     return {"message": "Test tool works!"}
