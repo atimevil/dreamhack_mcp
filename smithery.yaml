@@ -9,27 +9,12 @@ startCommand:
   type: http
   configSchema:
     type: object
-    properties:
-      HOST:
-        type: string
-        title: "Server Host"
-        default: "0.0.0.0"
-      PORT:
-        type: number
-        title: "Server Port"
-        default: 8000
-      MCP_PATH:
-        type: string
-        title: "MCP Endpoint Path"
-        default: "/mcp"
-    required:
-      - HOST
-      - PORT
-      - MCP_PATH
+    properties: {}
+    required: []
 
 run:
   # Command to run the agent.
-  command: ["python", "-u", "fastmcp_server.py"]  # -u flag for unbuffered output
+  command: ["python", "-u", "server.py"]  # -u flag for unbuffered output
 
   # Ports to expose from the container.
   ports:
@@ -37,19 +22,14 @@ run:
 
   # Environment variables to set for the running agent.
   environment:
-    HOST: "0.0.0.0"
-    PORT: "8000"
-    MCP_PATH: "/mcp"
     PYTHONUNBUFFERED: "1"  # Ensure Python output is not buffered
     PYTHONDONTWRITEBYTECODE: "1"  # Don't write .pyc files
-    MCP_TIMEOUT: "30"  # MCP 타임아웃 설정
-    MCP_MAX_WORKERS: "4"  # MCP 최대 워커 수 설정
 
   # Health check configuration
   healthCheck:
     type: http
     path: "/mcp/health"  # Health check endpoint
     interval: 30  # Check every 30 seconds
-    timeout: 30   # Timeout after 30 seconds (increased from 10)
-    retries: 5    # Retry 5 times before marking unhealthy (increased from 3)
+    timeout: 30   # Timeout after 30 seconds
+    retries: 5    # Retry 5 times before marking unhealthy
     initialDelay: 10  # Wait 10 seconds before starting health checks 
