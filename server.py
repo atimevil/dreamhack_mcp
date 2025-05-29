@@ -33,22 +33,17 @@ mcp = FastMCP(
 # 세션 전역 관리
 session = None
 
-# 도구 등록을 위한 데코레이터
-def register_tool(func):
-    @mcp.tool()
-    async def wrapper(*args, **kwargs):
-        return await asyncio.to_thread(func, *args, **kwargs)
-    return wrapper
-
-@mcp.tool()
 def connect() -> dict:
     """Connect to the server"""
     return {"message": "Connected successfully"}
 
-@register_tool
 def test_tool() -> dict:
     """Simple test tool"""
     return {"message": "Test tool works!"}
+
+# 도구 직접 등록
+mcp.tool()(connect)
+mcp.tool()(test_tool)
 
 # -------------------- TOOLS --------------------
 """
