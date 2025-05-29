@@ -9,7 +9,15 @@ startCommand:
   type: http
   configSchema:
     type: object
-    properties: {}
+    properties:
+      session_timeout:
+        type: integer
+        description: "Session timeout in seconds"
+        default: 3600
+      max_sessions:
+        type: integer
+        description: "Maximum number of concurrent sessions"
+        default: 100
     required: []
 
 run:
@@ -24,12 +32,12 @@ run:
   environment:
     PYTHONUNBUFFERED: "1"  # Ensure Python output is not buffered
     PYTHONDONTWRITEBYTECODE: "1"  # Don't write .pyc files
+    MCP_SESSION_TIMEOUT: "3600"  # Session timeout in seconds
+    MCP_MAX_SESSIONS: "100"  # Maximum concurrent sessions
+    MCP_STREAM_TIMEOUT: "300"  # Stream timeout in seconds
+    MCP_ENABLE_SSE: "true"  # Enable Server-Sent Events
 
-  # Health check configuration
-  healthCheck:
-    type: http
-    path: "/mcp/health"  # Health check endpoint
-    interval: 30  # Check every 30 seconds
-    timeout: 30   # Timeout after 30 seconds
-    retries: 5    # Retry 5 times before marking unhealthy
-    initialDelay: 10  # Wait 10 seconds before starting health checks 
+  # Resource limits
+  resources:
+    memory: "512Mi"  # Memory limit
+    cpu: "0.5"  # CPU limit (50% of one core) 
