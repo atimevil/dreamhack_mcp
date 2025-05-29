@@ -33,13 +33,12 @@ mcp = FastMCP(
 session = None
 session_id = None  # 세션 ID 추가
 
-# 도구 등록을 위한 데코레이터 (session_id 체크 로직 제거)
+# 도구 등록을 위한 데코레이터
 def register_tool(func):
     @mcp.tool()
     async def wrapper(*args, **kwargs):
-        # session_id 체크 로직을 각 도구 함수 내부로 이동하거나,
-        # 도구 실행 시에만 필요한 경우 여기에 둘 수 있지만, 스캔 시에는 불필요함.
-        # 현재는 wrapper에서 직접 session_id를 사용하지 않으므로, 이 데코레이터는 단순히 mcp.tool()을 적용하는 역할만 함.
+        # 여기서는 session_id 체크를 하지 않습니다.
+        # 실제 도구 실행 시 각 함수 내에서 로그인 여부를 확인합니다.
         return await asyncio.to_thread(func, *args, **kwargs)
     return wrapper
 
@@ -48,7 +47,7 @@ def register_tool(func):
 @register_tool
 def dreamhack_login(email: str, password: str) -> dict:
     """Dreamhack 로그인"""
-    global session, session_id # session_id도 여기서 설정
+    global session, session_id
     session = requests.Session()
     email_exist_resp = session.post("https://dreamhack.io/api/v1/auth/email-exist/", json={'email': email})
     if email_exist_resp.status_code != 200:
@@ -60,8 +59,7 @@ def dreamhack_login(email: str, password: str) -> dict:
     if not cookies:
         return {"error": "No session cookies found"}
     
-    # 로그인 성공 시 session_id 설정 (실제 세션 ID가 필요하다면 쿠키 등에서 추출)
-    # 여기서는 간단히 로그인 성공 여부를 나타내는 값을 할당
+    # 로그인 성공 시 session_id 설정 (예시 값)
     session_id = "dreamhack_session_active" 
     
     return {"success": True, "cookies": cookies, "message": "Login successful"}
@@ -70,7 +68,7 @@ def dreamhack_login(email: str, password: str) -> dict:
 def fetch_problems() -> dict:
     """문제 전체 목록 가져오기"""
     global session
-    if not session: # 세션 유효성 검사는 각 도구 함수 내에서 수행
+    if not session:
         return {"error": "Not logged in"}
     problems = []
     page = 1
@@ -107,7 +105,7 @@ def fetch_problems() -> dict:
 def fetch_problems_by_difficulty(difficulty: str = "all") -> dict:
     """난이도별 문제 목록 가져오기"""
     global session
-    if not session: # 세션 유효성 검사는 각 도구 함수 내에서 수행
+    if not session:
         return {"error": "Not logged in"}
     problems = []
     page = 1
@@ -141,7 +139,7 @@ def fetch_problems_by_difficulty(difficulty: str = "all") -> dict:
 def download_challenge(url: str, title: str) -> dict:
     """문제 파일 다운로드 및 압축 해제"""
     global session
-    if not session: # 세션 유효성 검사는 각 도구 함수 내에서 수행
+    if not session:
         return {"error": "Not logged in"}
     if not url or not title:
         return {"error": "url and title required"}
@@ -186,7 +184,6 @@ def download_challenge(url: str, title: str) -> dict:
 @register_tool
 def deploy_challenge(challenge_dir: str) -> dict:
     """문제 디렉토리에서 Docker 또는 app.py로 배포"""
-    # 이 함수는 세션과 직접적인 관련이 없으므로 session_id 체크 불필요
     try:
         problem_dirs = [d for d in os.listdir(challenge_dir) if os.path.isdir(os.path.join(challenge_dir, d)) and d != '__pycache__']
         if not problem_dirs:
@@ -232,7 +229,6 @@ def deploy_challenge(challenge_dir: str) -> dict:
 @register_tool
 def stop_challenge(deployment_type: str, image_name: str = None, process_id: int = None) -> dict:
     """배포된 문제 서버 중지"""
-    # 이 함수는 세션과 직접적인 관련이 없으므로 session_id 체크 불필요
     if deployment_type == 'docker':
         if not image_name:
             return {"error": "image_name is required"}
@@ -257,7 +253,7 @@ def stop_challenge(deployment_type: str, image_name: str = None, process_id: int
 def submit_flag(url: str, flag: str) -> dict:
     """문제의 flag 제출"""
     global session
-    if not session: # 세션 유효성 검사는 각 도구 함수 내에서 수행
+    if not session:
         return {"error": "Not logged in"}
 
     try:
@@ -337,25 +333,40 @@ def submit_flag_prompt(url: str) -> str:
 @mcp.resource("problems://all")
 def all_problems_resource():
     """전체 문제 목록을 리소스로 제공"""
-    # 리소스는 도구와 다르게 직접적으로 세션에 의존하지 않으므로 session_id 체크 불필요
-    return fetch_problems()["problems"]
+    global session
+    # 세션이 활성화된 경우에만 실제 데이터 페치
+    if session:
+        result = fetch_problems()
+        # fetch_problems()는 {"success": True, "problems": [...]} 형태를 반환하므로,
+        # "problems" 키가 없으면 빈 리스트를 반환하도록 안전하게 처리
+        return result.get("problems", [])
+    return [] # 세션이 없으면 빈 리스트 반환
 
 @mcp.resource("problems://{difficulty}")
 def problems_by_difficulty_resource(difficulty: str):
     """난이도별 문제 목록 리소스"""
-    # 리소스는 도구와 다르게 직접적으로 세션에 의존하지 않으므로 session_id 체크 불필요
-    return fetch_problems_by_difficulty(difficulty)["problems"]
+    global session
+    # 세션이 활성화된 경우에만 실제 데이터 페치
+    if session:
+        result = fetch_problems_by_difficulty(difficulty)
+        # fetch_problems_by_difficulty()도 유사하게 "problems" 키가 없으면 빈 리스트 반환
+        return result.get("problems", [])
+    return [] # 세션이 없으면 빈 리스트 반환
 
 @mcp.resource("challenge://{title}/files")
 def challenge_files_resource(title: str):
     """다운로드된 문제 파일 목록 리소스"""
-    # 이 리소스는 로컬 파일 시스템을 읽으므로 세션과 직접적인 관련 없음
     safe_title = re.sub(r'[<>:"/\\|?*]', '_', title)
     if not os.path.exists(safe_title):
         return []
     return [os.path.join(safe_title, f) for f in os.listdir(safe_title)]
 
 if __name__ == "__main__":
+    import logging
+
+    # 로거 설정: DEBUG 레벨로 설정하여 자세한 로그 확인
+    logging.basicConfig(level=logging.DEBUG) 
+
     # Smithery.ai에서는 process.env.PORT를 사용
     port = int(os.environ.get("PORT", 8000))
     host = "0.0.0.0"  # 모든 인터페이스에서 수신
