@@ -2,6 +2,8 @@
 
 This project implements a Model Context Protocol (MCP) server using the fastmcp library to interact with the Dreamhack wargame platform. It provides tools and resources to automate tasks such as fetching problem lists, downloading challenge files, and deploying them locally.
 
+[![smithery badge](https://smithery.ai/badge/@atimevil/dreamhack_mcp)](https://smithery.ai/server/@atimevil/dreamhack_mcp)
+
 ## Features
 
 -   Dreamhack login
